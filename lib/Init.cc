@@ -1,7 +1,36 @@
+    /*************************************************************************************
+
+    Grid physics library, www.github.com/paboyle/Grid 
+
+    Source file: ./lib/Init.cc
+
+    Copyright (C) 2015
+
+Author: Azusa Yamaguchi <ayamaguc@staffmail.ed.ac.uk>
+Author: Peter Boyle <paboyle@ph.ed.ac.uk>
+Author: Peter Boyle <peterboyle@MacBook-Pro.local>
+Author: paboyle <paboyle@ph.ed.ac.uk>
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License along
+    with this program; if not, write to the Free Software Foundation, Inc.,
+    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+    See the full license in the file "LICENSE" in the top level distribution directory
+    *************************************************************************************/
+    /*  END LEGAL */
 /****************************************************************************/
 /* pab: Signal magic. Processor state dump is x86-64 specific               */
 /****************************************************************************/
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -16,13 +45,6 @@
 #include <algorithm>
 #include <iterator>
 
-#undef __X86_64
-#define MAC
-
-#ifdef MAC
-#include <execinfo.h>
-#endif
-
 namespace Grid {
 
 //////////////////////////////////////////////////////
@@ -31,8 +53,10 @@ namespace Grid {
 //////////////////////////////////////////////////////
 static std::vector<int> Grid_default_latt;
 static std::vector<int> Grid_default_mpi;
-int GridThread::_threads;
 
+int GridThread::_threads =1;
+int GridThread::_hyperthreads=1;
+int GridThread::_cores=1;
 
 const std::vector<int> &GridDefaultLatt(void)     {return Grid_default_latt;};
 const std::vector<int> &GridDefaultMpi(void)      {return Grid_default_mpi;};
@@ -118,12 +142,18 @@ void GridParseLayout(char **argv,int argc,
     arg= GridCmdOptionPayload(argv,argv+argc,"--grid");
     GridCmdOptionIntVector(arg,latt);
   }
-  if( GridCmdOptionExists(argv,argv+argc,"--omp") ){
+  if( GridCmdOptionExists(argv,argv+argc,"--threads") ){
     std::vector<int> ompthreads(0);
-    arg= GridCmdOptionPayload(argv,argv+argc,"--omp");
+    arg= GridCmdOptionPayload(argv,argv+argc,"--threads");
     GridCmdOptionIntVector(arg,ompthreads);
     assert(ompthreads.size()==1);
     GridThread::SetThreads(ompthreads[0]);
+  }
+  if( GridCmdOptionExists(argv,argv+argc,"--cores") ){
+    std::vector<int> cores(0);
+    arg= GridCmdOptionPayload(argv,argv+argc,"--cores");
+    GridCmdOptionIntVector(arg,cores);
+    GridThread::SetCores(cores[0]);
   }
 
 }
@@ -138,9 +168,8 @@ std::string GridCmdVectorIntToString(const std::vector<int> & vec){
 /////////////////////////////////////////////////////////
 void Grid_init(int *argc,char ***argv)
 {
-#ifdef GRID_COMMS_MPI
-  MPI_Init(argc,argv);
-#endif
+  CartesianCommunicator::Init(argc,argv);
+
   // Parse command line args.
 
   GridLogger::StopWatch.Start();
@@ -160,7 +189,7 @@ void Grid_init(int *argc,char ***argv)
     std::cout<<GridLogMessage<<"--mpi n.n.n.n   : default MPI decomposition"<<std::endl;    
     std::cout<<GridLogMessage<<"--omp n         : default number of OMP threads"<<std::endl;    
     std::cout<<GridLogMessage<<"--grid n.n.n.n  : default Grid size"<<std::endl;    
-    std::cout<<GridLogMessage<<"--log list      : comma separted list of streams from Error,Warning,Message,Performance,Iterative,Debug"<<std::endl;    
+    std::cout<<GridLogMessage<<"--log list      : comma separted list of streams from Error,Warning,Message,Performance,Iterative,Integrator,Debug"<<std::endl;    
   }
 
   if( GridCmdOptionExists(*argv,*argv+*argc,"--log") ){
@@ -178,9 +207,15 @@ void Grid_init(int *argc,char ***argv)
   }
   if( GridCmdOptionExists(*argv,*argv+*argc,"--dslash-opt") ){
     QCD::WilsonFermionStatic::HandOptDslash=1;
+    QCD::WilsonFermion5DStatic::HandOptDslash=1;
   }
   if( GridCmdOptionExists(*argv,*argv+*argc,"--lebesgue") ){
     LebesgueOrder::UseLebesgueOrder=1;
+  }
+
+  if( GridCmdOptionExists(*argv,*argv+*argc,"--cacheblocking") ){
+    arg= GridCmdOptionPayload(*argv,*argv+*argc,"--cacheblocking");
+    GridCmdOptionIntVector(arg,LebesgueOrder::Block);
   }
   GridParseLayout(*argv,*argc,
 		  Grid_default_latt,
@@ -195,7 +230,37 @@ void Grid_init(int *argc,char ***argv)
     std::cout<<GridLogMessage<<"\tvComplexD      : "<<sizeof(vComplexD)*8 <<"bits ; " <<GridCmdVectorIntToString(GridDefaultSimd(4,vComplexD::Nsimd()))<<std::endl;
   }
 
-
+  std::cout <<std::endl;
+  std::cout <<Logger::RED  << "__|__|__|__|__"<<             "|__|__|_"<<Logger::PURPLE<<"_|__|__|"<<                "__|__|__|__|__"<<std::endl; 
+  std::cout <<Logger::RED  << "__|__|__|__|__"<<             "|__|__|_"<<Logger::PURPLE<<"_|__|__|"<<                "__|__|__|__|__"<<std::endl; 
+  std::cout <<Logger::RED  << "__|__|  |  |  "<<             "|  |  | "<<Logger::PURPLE<<" |  |  |"<<                "  |  |  | _|__"<<std::endl; 
+  std::cout <<Logger::RED  << "__|__         "<<             "        "<<Logger::PURPLE<<"        "<<                "          _|__"<<std::endl; 
+  std::cout <<Logger::RED  << "__|_  "<<Logger::GREEN<<" GGGG   "<<Logger::RED<<" RRRR   "<<Logger::BLUE  <<" III    "<<Logger::PURPLE<<"DDDD  "<<Logger::PURPLE<<"    _|__"<<std::endl;
+  std::cout <<Logger::RED  << "__|_  "<<Logger::GREEN<<"G       "<<Logger::RED<<" R   R  "<<Logger::BLUE  <<"  I     "<<Logger::PURPLE<<"D   D "<<Logger::PURPLE<<"    _|__"<<std::endl;
+  std::cout <<Logger::RED  << "__|_  "<<Logger::GREEN<<"G       "<<Logger::RED<<" R   R  "<<Logger::BLUE  <<"  I     "<<Logger::PURPLE<<"D    D"<<Logger::PURPLE<<"    _|__"<<std::endl;
+  std::cout <<Logger::BLUE << "__|_  "<<Logger::GREEN<<"G  GG   "<<Logger::RED<<" RRRR   "<<Logger::BLUE  <<"  I     "<<Logger::PURPLE<<"D    D"<<Logger::GREEN <<"    _|__"<<std::endl;
+  std::cout <<Logger::BLUE << "__|_  "<<Logger::GREEN<<"G   G   "<<Logger::RED<<" R  R   "<<Logger::BLUE  <<"  I     "<<Logger::PURPLE<<"D   D "<<Logger::GREEN <<"    _|__"<<std::endl;
+  std::cout <<Logger::BLUE << "__|_  "<<Logger::GREEN<<" GGGG   "<<Logger::RED<<" R   R  "<<Logger::BLUE  <<" III    "<<Logger::PURPLE<<"DDDD  "<<Logger::GREEN <<"    _|__"<<std::endl;
+  std::cout <<Logger::BLUE << "__|__         "<<             "        "<<Logger::GREEN <<"        "<<                "          _|__"<<std::endl; 
+  std::cout <<Logger::BLUE << "__|__|__|__|__"<<             "|__|__|_"<<Logger::GREEN <<"_|__|__|"<<                "__|__|__|__|__"<<std::endl; 
+  std::cout <<Logger::BLUE << "__|__|__|__|__"<<             "|__|__|_"<<Logger::GREEN <<"_|__|__|"<<                "__|__|__|__|__"<<std::endl; 
+  std::cout <<Logger::BLUE << "  |  |  |  |  "<<             "|  |  | "<<Logger::GREEN <<" |  |  |"<<                "  |  |  |  |  "<<std::endl; 
+  std::cout << std::endl;
+  std::cout << std::endl;
+  std::cout <<Logger::YELLOW<< std::endl;
+  std::cout << "Copyright (C) 2015 Peter Boyle, Azusa Yamaguchi, Guido Cossu, Antonin Portelli and other authors"<<std::endl;
+  std::cout << "Colours by Tadahito Boyle "<<std::endl;
+  std::cout << std::endl;
+  std::cout << "This program is free software; you can redistribute it and/or modify"<<std::endl;
+  std::cout << "it under the terms of the GNU General Public License as published by"<<std::endl;
+  std::cout << "the Free Software Foundation; either version 2 of the License, or"<<std::endl;
+  std::cout << "(at your option) any later version."<<std::endl;
+  std::cout << std::endl;
+  std::cout << "This program is distributed in the hope that it will be useful,"<<std::endl;
+  std::cout << "but WITHOUT ANY WARRANTY; without even the implied warranty of"<<std::endl;
+  std::cout << "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the"<<std::endl;
+  std::cout << "GNU General Public License for more details."<<std::endl;
+  std::cout << Logger::BLACK <<std::endl;
 }
 
   
@@ -212,7 +277,6 @@ double usecond(void) {
   return 1.0*tv.tv_usec + 1.0e6*tv.tv_sec;
 }
 
-#define _NBACKTRACE (256)
 void * Grid_backtrace_buffer[_NBACKTRACE];
 
 void Grid_sa_signal_handler(int sig,siginfo_t *si,void * ptr)
@@ -221,8 +285,11 @@ void Grid_sa_signal_handler(int sig,siginfo_t *si,void * ptr)
   printf("  mem address %llx\n",(unsigned long long)si->si_addr);
   printf("         code %d\n",si->si_code);
 
-#ifdef __X86_64
-    ucontext_t * uc= (ucontext_t *)ptr;
+  // Linux/Posix
+#ifdef __linux__
+  // And x86 64bit
+#ifdef __x86_64__
+  ucontext_t * uc= (ucontext_t *)ptr;
   struct sigcontext *sc = (struct sigcontext *)&uc->uc_mcontext;
   printf("  instruction %llx\n",(unsigned long long)sc->rip);
 #define REG(A)  printf("  %s %lx\n",#A,sc-> A);
@@ -246,13 +313,8 @@ void Grid_sa_signal_handler(int sig,siginfo_t *si,void * ptr)
   REG(r14);
   REG(r15);
 #endif
-#ifdef MAC
-  int symbols    = backtrace        (Grid_backtrace_buffer,_NBACKTRACE);
-  char **strings = backtrace_symbols(Grid_backtrace_buffer,symbols);
-  for (int i = 0; i < symbols; i++){
-    printf ("%s\n", strings[i]);
-  }
 #endif
+  BACKTRACE();
   exit(0);
   return;
 };

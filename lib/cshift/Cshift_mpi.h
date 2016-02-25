@@ -1,3 +1,31 @@
+    /*************************************************************************************
+
+    Grid physics library, www.github.com/paboyle/Grid 
+
+    Source file: ./lib/cshift/Cshift_mpi.h
+
+    Copyright (C) 2015
+
+Author: Peter Boyle <paboyle@ph.ed.ac.uk>
+Author: paboyle <paboyle@ph.ed.ac.uk>
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License along
+    with this program; if not, write to the Free Software Foundation, Inc.,
+    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+    See the full license in the file "LICENSE" in the top level distribution directory
+    *************************************************************************************/
+    /*  END LEGAL */
 #ifndef _GRID_CSHIFT_MPI_H_
 #define _GRID_CSHIFT_MPI_H_
 
@@ -9,7 +37,7 @@ template<class vobj> Lattice<vobj> Cshift(const Lattice<vobj> &rhs,int dimension
   typedef typename vobj::vector_type vector_type;
   typedef typename vobj::scalar_type scalar_type;
 
-  Lattice<vobj> ret(rhs._grid);
+  Lattice<vobj> ret(rhs._grid); 
   
   int fd = rhs._grid->_fdimensions[dimension];
   int rd = rhs._grid->_rdimensions[dimension];
@@ -26,10 +54,13 @@ template<class vobj> Lattice<vobj> Cshift(const Lattice<vobj> &rhs,int dimension
 
 
   if ( !comm_dim ) {
+    //    std::cout << "Cshift_local" <<std::endl;
     Cshift_local(ret,rhs,dimension,shift); // Handles checkerboarding
   } else if ( splice_dim ) {
+    //    std::cout << "Cshift_comms_simd" <<std::endl;
     Cshift_comms_simd(ret,rhs,dimension,shift);
   } else {
+    //    std::cout << "Cshift_comms" <<std::endl;
     Cshift_comms(ret,rhs,dimension,shift);
   }
   return ret;
@@ -42,9 +73,13 @@ template<class vobj> void Cshift_comms(Lattice<vobj>& ret,const Lattice<vobj> &r
   sshift[0] = rhs._grid->CheckerBoardShiftForCB(rhs.checkerboard,dimension,shift,Even);
   sshift[1] = rhs._grid->CheckerBoardShiftForCB(rhs.checkerboard,dimension,shift,Odd);
 
+  //  std::cout << "Cshift_comms dim "<<dimension<<"cb "<<rhs.checkerboard<<"shift "<<shift<<" sshift " << sshift[0]<<" "<<sshift[1]<<std::endl;
+
   if ( sshift[0] == sshift[1] ) {
+    //    std::cout << "Single pass Cshift_comms" <<std::endl;
     Cshift_comms(ret,rhs,dimension,shift,0x3);
   } else {
+    //    std::cout << "Two pass Cshift_comms" <<std::endl;
     Cshift_comms(ret,rhs,dimension,shift,0x1);// if checkerboard is unfavourable take two passes
     Cshift_comms(ret,rhs,dimension,shift,0x2);// both with block stride loop iteration
   }
@@ -113,12 +148,16 @@ template<class vobj> void Cshift_comms(Lattice<vobj> &ret,const Lattice<vobj> &r
       int xmit_to_rank;
       grid->ShiftedRanks(dimension,comm_proc,xmit_to_rank,recv_from_rank);
 
+
       grid->SendToRecvFrom((void *)&send_buf[0],
 			   xmit_to_rank,
 			   (void *)&recv_buf[0],
 			   recv_from_rank,
 			   bytes);
 
+      //      for(int i=0;i<words;i++){
+      //	std::cout << "SendRecv ["<<i<<"] snd "<<send_buf[i]<<" rcv " << recv_buf[i] << "  0x" << cbmask<<std::endl;
+      //      }
       Scatter_plane_simple (ret,recv_buf,dimension,x,cbmask);
     }
   }
@@ -152,11 +191,12 @@ template<class vobj> void  Cshift_comms_simd(Lattice<vobj> &ret,const Lattice<vo
   int buffer_size = grid->_slice_nblock[dimension]*grid->_slice_block[dimension];
   int words = sizeof(vobj)/sizeof(vector_type);
 
-  std::vector<std::vector<scalar_object> > send_buf_extract(Nsimd,std::vector<scalar_object>(buffer_size) );
-  std::vector<std::vector<scalar_object> > recv_buf_extract(Nsimd,std::vector<scalar_object>(buffer_size) );
+  std::vector<Vector<scalar_object> >   send_buf_extract(Nsimd,Vector<scalar_object>(buffer_size) );
+  std::vector<Vector<scalar_object> >   recv_buf_extract(Nsimd,Vector<scalar_object>(buffer_size) );
+
   int bytes = buffer_size*sizeof(scalar_object);
 
-  std::vector<scalar_object *>  pointers(Nsimd);  // 
+  std::vector<scalar_object *>  pointers(Nsimd); // 
   std::vector<scalar_object *> rpointers(Nsimd); // received pointers
 
   ///////////////////////////////////////////

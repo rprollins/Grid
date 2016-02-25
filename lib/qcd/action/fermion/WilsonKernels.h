@@ -1,3 +1,32 @@
+    /*************************************************************************************
+
+    Grid physics library, www.github.com/paboyle/Grid 
+
+    Source file: ./lib/qcd/action/fermion/WilsonKernels.h
+
+    Copyright (C) 2015
+
+Author: Peter Boyle <pabobyle@ph.ed.ac.uk>
+Author: Peter Boyle <paboyle@ph.ed.ac.uk>
+Author: paboyle <paboyle@ph.ed.ac.uk>
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License along
+    with this program; if not, write to the Free Software Foundation, Inc.,
+    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+    See the full license in the file "LICENSE" in the top level distribution directory
+    *************************************************************************************/
+    /*  END LEGAL */
 #ifndef  GRID_QCD_DHOP_H
 #define  GRID_QCD_DHOP_H
 
@@ -17,45 +46,32 @@ namespace Grid {
      typedef FermionOperator<Impl> Base;
      
     public:
-     void DiracOptDhopSite(CartesianStencil &st,DoubledGaugeField &U,
+     void DiracOptDhopSite(StencilImpl &st,DoubledGaugeField &U,
 			   std::vector<SiteHalfSpinor,alignedAllocator<SiteHalfSpinor> >  &buf,
-			   int sF,int sU,const FermionField &in, FermionField &out);
+			   int sF,int sU,const FermionField &in, FermionField &out,bool local= true, bool nonlocal=true);
       
-     void DiracOptDhopSiteDag(CartesianStencil &st,DoubledGaugeField &U,
+     void DiracOptDhopSiteDag(StencilImpl &st,DoubledGaugeField &U,
 			      std::vector<SiteHalfSpinor,alignedAllocator<SiteHalfSpinor> >  &buf,
-			      int sF,int sU,const FermionField &in,FermionField &out);
+			      int sF,int sU,const FermionField &in,FermionField &out,bool local= true, bool nonlocal=true);
 
-     void DiracOptDhopDir(CartesianStencil &st,DoubledGaugeField &U,
+     void DiracOptDhopDir(StencilImpl &st,DoubledGaugeField &U,
 			  std::vector<SiteHalfSpinor,alignedAllocator<SiteHalfSpinor> >  &buf,
 			  int sF,int sU,const FermionField &in, FermionField &out,int dirdisp,int gamma);
-#define HANDOPT
-#ifdef HANDOPT
-     void DiracOptHandDhopSite(CartesianStencil &st,DoubledGaugeField &U,
-			       std::vector<SiteHalfSpinor,alignedAllocator<SiteHalfSpinor> >  &buf,
-			       int sF,int sU,const FermionField &in, FermionField &out);
 
-     void DiracOptHandDhopSiteDag(CartesianStencil &st,DoubledGaugeField &U,
-				  std::vector<SiteHalfSpinor,alignedAllocator<SiteHalfSpinor> >  &buf,
-				  int sF,int sU,const FermionField &in, FermionField &out);
-#else
+     void DiracOptAsmDhopSite(StencilImpl &st,DoubledGaugeField &U,
+			      std::vector<SiteHalfSpinor,alignedAllocator<SiteHalfSpinor> >  &buf,
+			      int sF,int sU,const FermionField &in, FermionField &out,bool local= true, bool nonlocal=true);
 
-     void DiracOptHandDhopSite(CartesianStencil &st,DoubledGaugeField &U,
-			       std::vector<SiteHalfSpinor,alignedAllocator<SiteHalfSpinor> >  &buf,
-			       int sF,int sU,const FermionField &in, FermionField &out)
-     {
-       DiracOptDhopSite(st,U,buf,sF,sU,in,out); // will template override for Wilson Nc=3
-     }
+     int DiracOptHandDhopSite(StencilImpl &st,DoubledGaugeField &U,
+			      std::vector<SiteHalfSpinor,alignedAllocator<SiteHalfSpinor> >  &buf,
+			      int sF,int sU,const FermionField &in, FermionField &out,bool local= true, bool nonlocal=true);
+     
+     int DiracOptHandDhopSiteDag(StencilImpl &st,DoubledGaugeField &U,
+				 std::vector<SiteHalfSpinor,alignedAllocator<SiteHalfSpinor> >  &buf,
+				 int sF,int sU,const FermionField &in, FermionField &out,bool local= true, bool nonlocal=true);
 
-     void DiracOptHandDhopSiteDag(CartesianStencil &st,DoubledGaugeField &U,
-				  std::vector<SiteHalfSpinor,alignedAllocator<SiteHalfSpinor> >  &buf,
-				  int sF,int sU,const FermionField &in, FermionField &out)
-     {
-       DiracOptDhopSiteDag(st,U,buf,sF,sU,in,out); // will template override for Wilson Nc=3
-     }
-#endif
-
-     WilsonKernels(const ImplParams &p= ImplParams()) : Base(p) {};
-
+     WilsonKernels(const ImplParams &p= ImplParams());
+     
     };
 
   }

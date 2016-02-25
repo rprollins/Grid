@@ -1,3 +1,32 @@
+    /*************************************************************************************
+
+    Grid physics library, www.github.com/paboyle/Grid 
+
+    Source file: ./lib/qcd/action/fermion/WilsonFermion.h
+
+    Copyright (C) 2015
+
+Author: Peter Boyle <pabobyle@ph.ed.ac.uk>
+Author: Peter Boyle <paboyle@ph.ed.ac.uk>
+Author: paboyle <paboyle@ph.ed.ac.uk>
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License along
+    with this program; if not, write to the Free Software Foundation, Inc.,
+    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+    See the full license in the file "LICENSE" in the top level distribution directory
+    *************************************************************************************/
+    /*  END LEGAL */
 #ifndef  GRID_QCD_WILSON_FERMION_H
 #define  GRID_QCD_WILSON_FERMION_H
 
@@ -42,10 +71,12 @@ namespace Grid {
       /////////////////////////////////////////////////////////
       void Meooe(const FermionField &in, FermionField &out) ;
       void MeooeDag(const FermionField &in, FermionField &out) ;
-      void Mooee(const FermionField &in, FermionField &out) ;
-      void MooeeDag(const FermionField &in, FermionField &out) ;
-      void MooeeInv(const FermionField &in, FermionField &out) ;
-      void MooeeInvDag(const FermionField &in, FermionField &out) ;
+
+      // allow override for twisted mass and clover
+      virtual void Mooee(const FermionField &in, FermionField &out) ;
+      virtual void MooeeDag(const FermionField &in, FermionField &out) ;
+      virtual void MooeeInv(const FermionField &in, FermionField &out) ;
+      virtual void MooeeInvDag(const FermionField &in, FermionField &out) ;
 
       ////////////////////////
       // Derivative interface
@@ -73,15 +104,20 @@ namespace Grid {
       ///////////////////////////////////////////////////////////////
       // Extra methods added by derived
       ///////////////////////////////////////////////////////////////
-      void DerivInternal(CartesianStencil & st,
+      void DerivInternal(StencilImpl & st,
 			 DoubledGaugeField & U,
 			 GaugeField &mat,
 			 const FermionField &A,
 			 const FermionField &B,
 			 int dag);
 
-      void DhopInternal(CartesianStencil & st,DoubledGaugeField & U,
+      void DhopInternal(StencilImpl & st,DoubledGaugeField & U,
 			const FermionField &in, FermionField &out,int dag) ;
+
+      void DhopInternalCommsThenCompute(StencilImpl & st,DoubledGaugeField & U,
+				    const FermionField &in, FermionField &out,int dag) ;
+      void DhopInternalCommsOverlapCompute(StencilImpl & st,DoubledGaugeField & U,
+				    const FermionField &in, FermionField &out,int dag) ;
 
 
       // Constructor
@@ -108,17 +144,14 @@ namespace Grid {
       GridBase                     *  _cbgrid;
 
       //Defines the stencils for even and odd
-      CartesianStencil Stencil; 
-      CartesianStencil StencilEven; 
-      CartesianStencil StencilOdd; 
+      StencilImpl Stencil; 
+      StencilImpl StencilEven; 
+      StencilImpl StencilOdd; 
 
       // Copy of the gauge field , with even and odd subsets
       DoubledGaugeField Umu;
       DoubledGaugeField UmuEven;
       DoubledGaugeField UmuOdd;
-
-      // Comms buffer
-      std::vector<SiteHalfSpinor,alignedAllocator<SiteHalfSpinor> >  comm_buf;
       
     };
 

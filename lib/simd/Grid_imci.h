@@ -1,3 +1,31 @@
+    /*************************************************************************************
+
+    Grid physics library, www.github.com/paboyle/Grid 
+
+    Source file: ./lib/simd/Grid_imci.h
+
+    Copyright (C) 2015
+
+Author: Peter Boyle <paboyle@ph.ed.ac.uk>
+Author: paboyle <paboyle@ph.ed.ac.uk>
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License along
+    with this program; if not, write to the Free Software Foundation, Inc.,
+    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+    See the full license in the file "LICENSE" in the top level distribution directory
+    *************************************************************************************/
+    /*  END LEGAL */
 //----------------------------------------------------------------------
 /*! @file Grid_knc.h
   @brief Optimization libraries for AVX512 instructions set for KNC
@@ -8,12 +36,6 @@
 //----------------------------------------------------------------------
 
 #include <immintrin.h>
-
-#ifndef KNC_ONLY_STORES
-#define  _mm512_storenrngo_ps _mm512_store_ps  // not present in AVX512
-#define  _mm512_storenrngo_pd _mm512_store_pd  // not present in AVX512
-#endif
-
 
 namespace Optimization {
   
@@ -197,6 +219,15 @@ namespace Optimization {
   };
   
   struct Mult{
+
+    inline void mac(__m512 &a, __m512 b, __m512 c){         
+       a= _mm512_fmadd_ps( b, c, a);                         
+    }
+
+    inline void mac(__m512d &a, __m512d b, __m512d c){
+      a= _mm512_fmadd_pd( b, c, a);                   
+    }                                             
+
     // Real float
     inline __m512 operator()(__m512 a, __m512 b){
       return _mm512_mul_ps(a,b);
@@ -255,7 +286,36 @@ namespace Optimization {
   };
 
 
-  
+   struct Permute{
+    
+    static inline __m512 Permute0(__m512 in){
+      return _mm512_permute4f128_ps(in,(_MM_PERM_ENUM)_MM_SELECT_FOUR_FOUR(1,0,3,2));
+    };
+    static inline __m512 Permute1(__m512 in){
+      return _mm512_permute4f128_ps(in,(_MM_PERM_ENUM)_MM_SELECT_FOUR_FOUR(2,3,0,1));
+    };
+    static inline __m512 Permute2(__m512 in){
+      return _mm512_swizzle_ps(in,_MM_SWIZ_REG_BADC);
+    };
+    static inline __m512 Permute3(__m512 in){
+      return _mm512_swizzle_ps(in,_MM_SWIZ_REG_CDAB); 
+    };
+
+    static inline __m512d Permute0(__m512d in){// Hack no intrinsic for 256 swaps of __m512d
+      return (__m512d)_mm512_permute4f128_ps((__m512)in,(_MM_PERM_ENUM)_MM_SELECT_FOUR_FOUR(1,0,3,2));
+    };
+    static inline __m512d Permute1(__m512d in){
+      return _mm512_swizzle_pd(in,_MM_SWIZ_REG_BADC);
+    };
+    static inline __m512d Permute2(__m512d in){
+      return _mm512_swizzle_pd(in,_MM_SWIZ_REG_CDAB);
+    };
+    static inline __m512d Permute3(__m512d in){
+      return in;
+    };
+
+  };
+ 
 
 
   //////////////////////////////////////////////
@@ -315,25 +375,6 @@ namespace Grid {
   }
 
 
-
-
-  // Gpermute utilities consider coalescing into 1 Gpermute
-  template < typename VectorSIMD > 
-    inline void Gpermute(VectorSIMD &y,const VectorSIMD &b, int perm ) {
-    union { 
-      __m512 f;
-      decltype(VectorSIMD::v) v;
-    } conv;
-    conv.v = b.v;
-    switch(perm){
-    case 3:  conv.f = _mm512_swizzle_ps(conv.f,_MM_SWIZ_REG_CDAB); break;
-    case 2:  conv.f = _mm512_swizzle_ps(conv.f,_MM_SWIZ_REG_BADC); break; 
-    case 1 : conv.f = _mm512_permute4f128_ps(conv.f,(_MM_PERM_ENUM)_MM_SHUFFLE(2,3,0,1)); break;
-    case 0 : conv.f = _mm512_permute4f128_ps(conv.f,(_MM_PERM_ENUM)_MM_SHUFFLE(1,0,3,2)); break;
-    default: assert(0); break;
-    }
-    y.v=conv.v;
-  };
   
   // Function name aliases
   typedef Optimization::Vsplat   VsplatSIMD;

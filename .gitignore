@@ -43,6 +43,8 @@
 ########################################
 Makefile.in
 Makefile
+Config.h
+Config.h.in
 config.log
 config.status
 .deps
@@ -93,6 +95,7 @@ Thumbs.db
 # build directory #
 ###################
 build/*
+build_debug/*
 
 # IDE related files #
 #####################

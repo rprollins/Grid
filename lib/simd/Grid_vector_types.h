@@ -1,3 +1,33 @@
+    /*************************************************************************************
+
+    Grid physics library, www.github.com/paboyle/Grid 
+
+    Source file: ./lib/simd/Grid_vector_types.h
+
+    Copyright (C) 2015
+
+Author: Azusa Yamaguchi <ayamaguc@staffmail.ed.ac.uk>
+Author: Guido Cossu <cossu@iroiro-pc.kek.jp>
+Author: Peter Boyle <paboyle@ph.ed.ac.uk>
+Author: neo <cossu@post.kek.jp>
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License along
+    with this program; if not, write to the Free Software Foundation, Inc.,
+    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+    See the full license in the file "LICENSE" in the top level distribution directory
+    *************************************************************************************/
+    /*  END LEGAL */
 //---------------------------------------------------------------------------
 /*! @file Grid_vector_types.h
   @brief Defines templated class Grid_simd to deal with inner vector types
@@ -13,7 +43,7 @@
 #ifdef SSE4
 #include "Grid_sse4.h"
 #endif
-#if defined (AVX1)|| defined (AVX2)
+#if defined (AVX1)|| defined (AVX2) || defined (AVXFMA4)
 #include "Grid_avx.h"
 #endif
 #if defined AVX512
@@ -133,7 +163,11 @@ namespace Grid {
     ///////////////////////////////////////////////
     // mac, mult, sub, add, adj
     ///////////////////////////////////////////////
+
+    // FIXME -- alias this to an inline MAC struct.
     friend inline void mac (Grid_simd * __restrict__ y,const Grid_simd * __restrict__ a,const Grid_simd *__restrict__ x){ *y = (*a)*(*x)+(*y); };
+
+
     friend inline void mult(Grid_simd * __restrict__ y,const Grid_simd * __restrict__ l,const Grid_simd *__restrict__ r){ *y = (*l) * (*r); }
     friend inline void sub (Grid_simd * __restrict__ y,const Grid_simd * __restrict__ l,const Grid_simd *__restrict__ r){ *y = (*l) - (*r); }
     friend inline void add (Grid_simd * __restrict__ y,const Grid_simd * __restrict__ l,const Grid_simd *__restrict__ r){ *y = (*l) + (*r); }
@@ -251,14 +285,29 @@ namespace Grid {
     // all subtypes; may not be a good assumption, but could
     // add the vector width as a template param for BG/Q for example
     ////////////////////////////////////////////////////////////////////
+    friend inline void permute0(Grid_simd &y,Grid_simd b){
+      y.v = Optimization::Permute::Permute0(b.v);
+    }
+    friend inline void permute1(Grid_simd &y,Grid_simd b){
+      y.v = Optimization::Permute::Permute1(b.v);
+    }
+    friend inline void permute2(Grid_simd &y,Grid_simd b){
+      y.v = Optimization::Permute::Permute2(b.v);
+    }
+    friend inline void permute3(Grid_simd &y,Grid_simd b){
+      y.v = Optimization::Permute::Permute3(b.v);
+    }
     friend inline void permute(Grid_simd &y,Grid_simd b,int perm)
     {
-      Gpermute<Grid_simd>(y,b,perm);
+      if      (perm==3) permute3(y,b);
+      else if (perm==2) permute2(y,b);
+      else if (perm==1) permute1(y,b);
+      else if (perm==0) permute0(y,b);
     }
+
 
     
   };// end of Grid_simd class definition 
-
 
   ///////////////////////
   // Splat

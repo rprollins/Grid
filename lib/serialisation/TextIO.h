@@ -1,3 +1,31 @@
+    /*************************************************************************************
+
+    Grid physics library, www.github.com/paboyle/Grid 
+
+    Source file: ./lib/serialisation/TextIO.h
+
+    Copyright (C) 2015
+
+Author: Antonin Portelli <antonin.portelli@me.com>
+Author: Peter Boyle <paboyle@ph.ed.ac.uk>
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License along
+    with this program; if not, write to the Free Software Foundation, Inc.,
+    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+    See the full license in the file "LICENSE" in the top level distribution directory
+    *************************************************************************************/
+    /*  END LEGAL */
 #ifndef GRID_SERIALISATION_TEXT_READER_H
 #define GRID_SERIALISATION_TEXT_READER_H
 
@@ -9,140 +37,91 @@
 #include <vector>
 #include <cassert>
 
-namespace Grid {
-
-class TextWriter  : public Writer {
-private:
-
-  std::ofstream file;
-  int level;
-  void indent(void) {
-    for(int i=0;i<level;i++){
-      file <<"\t";
-    }
-  }
-public:
-
-  TextWriter(const std::string &_file) : file(_file,std::ios::out) {
-    level=0;
-  }
-
-  ~TextWriter()  {  }
-
-  void push(const std::string &s)
+namespace Grid
+{
+  
+  class TextWriter: public Writer<TextWriter>
   {
-    //    std::string tmp = s;
-    //    write(s,tmp);
-    level++;
-  }
-  void pop(void) {
-    level--;
-  }
-
-  void write( const std::string& s,const std::string &output      ) { 
-    indent();
-    file<<output<<std::endl;
+  public:
+    TextWriter(const std::string &fileName);
+    virtual ~TextWriter(void) = default;
+    void push(const std::string &s);
+    void pop(void);
+    template <typename U>
+    void writeDefault(const std::string &s, const U &x);
+    template <typename U>
+    void writeDefault(const std::string &s, const std::vector<U> &x);
+  private:
+    void indent(void);
+  private:
+    std::ofstream file_;
+    int           level_{0};
   };
-  void write( const std::string& s,const  int16_t    output      ) { writeInternal(s,output); };
-  void write( const std::string& s,const uint16_t    output      ) { writeInternal(s,output); };
-  void write( const std::string& s,const  int32_t    output      ) { writeInternal(s,output); };
-  void write( const std::string& s,const uint32_t    output      ) { writeInternal(s,output); };
-  void write( const std::string& s,const  int64_t    output      ) { writeInternal(s,output); };
-  void write( const std::string& s,const uint64_t    output      ) { writeInternal(s,output); };
-  void write( const std::string& s,const  float      output      ) { writeInternal(s,output); };
-  void write( const std::string& s,const double      output      ) { writeInternal(s,output); };
-  void write( const std::string& s,const bool        output      ) { writeInternal(s,output); };
-
-private:
-
-  template<class T> void writeInternal( const std::string& s,const T output ){
+  
+  class TextReader: public Reader<TextReader>
+  {
+  public:
+    TextReader(const std::string &fileName);
+    virtual ~TextReader(void) = default;
+    void push(const std::string &s);
+    void pop(void);
+    template <typename U>
+    void readDefault(const std::string &s, U &output);
+    template <typename U>
+    void readDefault(const std::string &s, std::vector<U> &output);
+  private:
+    void checkIndent(void);
+  private:
+    std::ifstream file_;
+    int           level_{0};
+  };
+  
+  // Writer template implementation ////////////////////////////////////////////
+  template <typename U>
+  void TextWriter::writeDefault(const std::string &s, const U &x)
+  {
     indent();
-    file << std::boolalpha << output<<std::endl;
+    file_ << std::boolalpha << x << std::endl;
   }
   
-};
-
-class TextReader : public Reader {
-private:
-
-  std::ifstream file;
-  int level;
-
-public:
-
-
- TextReader(const std::string &_file) : file(_file,std::ios::in) { level = 0;};
-
-  ~TextReader()  {  }
-
-  void read( const std::string& s,std::string &output      ) { 
-    char c='a';
-    for(int i=0;i<level;i++){
-      file.get(c);
-      if ( c != '\t' ) 
-	std::cout << "mismatch on tab "<<c<<" level "<< level<< " i "<< i<<std::endl;
-    }
-    output.clear();
-    std::getline(file,output);
-  };
-  void push(const std::string &s)  { 
-    //  std::string tmp; read(s,tmp); 
-    level++;
-  }
-  void pop(void) { level--; }
-
-  template<class T>
-  void read( const std::string& s, std::vector<T>  &output      ) { 
+  template <typename U>
+  void TextWriter::writeDefault(const std::string &s, const std::vector<U> &x)
+  {
+    uint64_t sz = x.size();
     
-    push(s);
-
-    uint64_t n; read("N",n);
-
-    // skip the vector length
-    T tmp;
-    output.resize(0);
-    for(int i=0;i<n;i++){
-      std::ostringstream oss;      oss << "elem" << i;
-      read(*this,oss.str(),tmp);
-      output.push_back(tmp);
+    write(s, sz);
+    for (uint64_t i = 0; i < sz; ++i)
+    {
+      write(s, x[i]);
     }
-
-    pop();
-
-  };
-
-  void read( const std::string& s,  int16_t  &output      ) { readInternal(s,output); };
-  void read( const std::string& s, uint16_t  &output      ) { readInternal(s,output); };
-  void read( const std::string& s,  int32_t  &output      ) { readInternal(s,output); };
-  void read( const std::string& s, uint32_t  &output      ) { readInternal(s,output); };
-  void read( const std::string& s,  int64_t  &output      ) { readInternal(s,output); };
-  void read( const std::string& s, uint64_t  &output      ) { readInternal(s,output); };
-  void read( const std::string& s,  float    &output      ) { readInternal(s,output); };
-  void read( const std::string& s, double    &output      ) { readInternal(s,output); };
-  void read( const std::string& s, bool      &output      ) { readInternal(s,output); };
-
-
-private:
-
-  template<class T> void readInternal( const std::string& path, T &output ){
-    std::string asString;
-    read(path,asString);
-    convert(asString,output);
-  }
-
-  template<class T> void convert(const std::string &asString,T &output)
-  {
-    std::istringstream is(asString);  is.exceptions(std::ios::failbit);
-    try {
-      is >> std::boolalpha >> output;
-    } catch(std::istringstream::failure e) {
-      std::cerr << "XML read failure on "<<" "<<asString<<" "<<typeid(T).name()<<std::endl;
-    }
-    assert( is.tellg()==-1);
   }
   
-};
-
+  // Reader template implementation ////////////////////////////////////////////
+  template <typename U>
+  void TextReader::readDefault(const std::string &s, U &output)
+  {
+    std::string buf;
+    
+    readDefault(s, buf);
+    fromString(output, buf);
+  }
+  
+  template <>
+  void TextReader::readDefault(const std::string &s, std::string &output);
+  
+  template <typename U>
+  void TextReader::readDefault(const std::string &s, std::vector<U> &output)
+  {
+    uint64_t sz;
+    
+    read("", sz);
+    output.resize(sz);
+    for (uint64_t i = 0; i < sz; ++i)
+    {
+      read("", output[i]);
+    }
+  }
 }
+
 #endif
 
