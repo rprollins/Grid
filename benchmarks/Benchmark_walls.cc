@@ -26,9 +26,6 @@ public:
     vqmiu(qmiu)
 
   {
-    // Resize communication buffer
-    comm_buf.resize(stencil._unified_buffer_size);
-
     // Initialize pointers to scalar fields
     Pold = P2;
     Pnow = P1;
@@ -66,7 +63,7 @@ public:
     }
 
     // Halo exchange
-    stencil.HaloExchange(*Pnew,comm_buf,compressor);
+    stencil.HaloExchange(*Pnew,compressor);
 
     // Increment time
     ct_prev  = ct;
@@ -86,8 +83,7 @@ private:
   const std::vector<int> directions    = std::vector<int>({ 0, 1, 2, 0, 1, 2});
   const std::vector<int> displacements = std::vector<int>({ 1, 1, 1,-1,-1,-1});
 
-  Grid::CartesianStencil stencil;
-  std::vector< vScalar, Grid::alignedAllocator<vScalar> > comm_buf;
+  Grid::CartesianStencil<vScalar,vScalar> stencil;
   Grid::SimpleCompressor<vScalar> compressor;
 
   const Grid::Real alfa       = 3.0;
@@ -146,7 +142,7 @@ private:
       else if (SE->_is_local)
         SV = Pnow->_odata[SE->_offset];
       else
-        SV = comm_buf[SE->_offset];
+        SV = stencil.comm_buf[SE->_offset];
       if(j==0) {Lphi  = SV;}
       else     {Lphi += SV;}
     }
@@ -163,8 +159,8 @@ int main (int argc, char ** argv)
   Grid::Grid_init(&argc,&argv);
 
   // Benchmark constants
-  const int Nloop = 100000; // Benchmark iterations
-  const int Nd    = 3;      // Three spatial dimensions
+  const int Nloop = 10000; // Benchmark iterations
+  const int Nd    = 3;     // Three spatial dimensions
 
   // Lattice, MPI and SIMD layouts and OpenMP threads
   std::vector<int> latt_size   = Grid::GridDefaultLatt();
